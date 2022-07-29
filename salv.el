@@ -1,4 +1,4 @@
-;;; salv.el --- Local minor mode to save a modified buffer when idle  -*- lexical-binding: t; -*-
+;;; salv.el --- Local minor mode to save a modified buffer when  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2022  Free Software Foundation
 
@@ -35,7 +35,7 @@
 ;; A: Salve is a buffer-local minor mode, rather than being a global
 ;; mode.  It is activated in buffers the user wants to be saved,
 ;; rather than in all buffers (requiring the user to exclude ones that
-;; aren't to be saved).  It uses per-buffer idle timers, rather than a
+;; aren't to be saved).  It uses per-buffer timers, rather than a
 ;; global timer.  It only runs a timer when a buffer is modified after
 ;; being saved, rather than constantly.
 
@@ -53,26 +53,26 @@
 
 ;;;; Variables
 
-(defvar-local salv-idle-timer nil
-  "Per-buffer idle timer.")
+(defvar-local salv-timer nil
+  "Per-buffer timer.")
 
 ;;;; Customization
 
 (defgroup salv nil
-  "Automatically save buffer when Emacs is idle."
+  "Automatically save buffer after so many seconds"
   :group 'convenience)
 
-(defcustom salv-idle-seconds 5
-  "Idle seconds before saving buffer."
+(defcustom salv-seconds 5
+  "Seconds before saving buffer."
   :type 'number)
 
 ;;;; Commands
 
 ;;;###autoload
 (define-minor-mode salv-mode
-  "Automatically save buffer when Emacs is idle.
+  "Automatically save buffer after so many seconds.
 When enabled in a buffer, it will be automatically saved
-according to `salv-idle-seconds'."
+according to `salv-seconds'."
   :lighter " Salve"
   (if salv-mode
       (progn
@@ -83,23 +83,31 @@ according to `salv-idle-seconds'."
     (setq-local first-change-hook (remq #'salv--run-timer first-change-hook))
     (when (equal first-change-hook (default-value 'first-change-hook))
       (kill-local-variable 'first-change-hook))
-    (when salv-idle-timer
-      (cancel-timer salv-idle-timer)
-      (setf salv-idle-timer nil))))
+    (when salv-timer
+      (cancel-timer salv-timer)
+      (setf salv-timer nil))))
+
 
 ;;;; Functions
 
 (defun salv--run-timer ()
-  "Run idle timer to save current buffer."
-  (setf salv-idle-timer (run-with-idle-timer
-                         salv-idle-seconds nil #'salv--save-buffer (current-buffer))))
+  "Run timer to save current buffer."
+  (setf salv-timer (run-with-timer
+                    salv-seconds nil #'salv--save-buffer (current-buffer)))
+  (add-hook 'post-self-insert-hook 'salv--postpone-save nil t))
+
+(defun salv--postpone-save ()
+  "Postpone running salv timer due to buffer edit."
+  (cancel-timer salv-timer)
+  (salv--run-timer))
 
 (defun salv--save-buffer (buffer)
-  "Save BUFFER and unset idle timer."
+  "Save BUFFER and unset timer."
   (when (buffer-live-p buffer)
     (with-current-buffer buffer
+      (remove-hook 'post-self-insert-hook 'salv--postpone-save t)
       (save-buffer)
-      (setf salv-idle-timer nil))))
+      (setf salv-timer nil))))
 
 ;;;; Footer
 
