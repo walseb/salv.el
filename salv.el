@@ -94,12 +94,13 @@ according to `salv-seconds'."
   "Run timer to save current buffer."
   (setf salv-timer (run-with-timer
                     salv-seconds nil #'salv--save-buffer (current-buffer)))
-  (add-hook 'post-self-insert-hook 'salv--postpone-save nil t))
+  (add-hook 'post-self-insert-hook (lambda () (salv--postpone-save (current-buffer))) nil t))
 
-(defun salv--postpone-save ()
+(defun salv--postpone-save (buffer)
   "Postpone running salv timer due to buffer edit."
-  (cancel-timer salv-timer)
-  (salv--run-timer))
+  (with-current-buffer buffer
+    (cancel-timer salv-timer)
+    (salv--run-timer)))
 
 (defun salv--save-buffer (buffer)
   "Save BUFFER and unset timer."
