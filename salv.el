@@ -99,7 +99,8 @@ according to `salv-seconds'."
 (defun salv--postpone-save (buffer)
   "Postpone running salv timer due to buffer edit."
   (with-current-buffer buffer
-    (cancel-timer salv-timer)
+    (when salv-timer
+      (cancel-timer salv-timer))
     (salv--run-timer)))
 
 (defun salv--save-buffer (buffer)
