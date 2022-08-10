@@ -95,24 +95,26 @@ according to `salv-seconds'."
 
 (defun salv--run-timer ()
   "Run timer to save current buffer."
-  (setf salv-timer (run-with-timer
-                    salv-seconds nil #'salv--save-buffer (current-buffer)))
+  (unless salv-timer
+    (setf salv-timer (run-with-timer
+                      salv-seconds nil #'salv--save-buffer (current-buffer)))
 
-  (setq salv-postpone-hook (lambda (&rest _) (salv--postpone-save (current-buffer))))
-  (add-to-list 'after-change-functions salv-postpone-hook))
+    (setq salv-postpone-hook (lambda (&rest _) (salv--postpone-save (current-buffer))))
+    (add-to-list 'after-change-functions salv-postpone-hook)))
 
 (defun salv--postpone-save (buffer)
   "Postpone running salv timer due to buffer edit."
   (with-current-buffer buffer
     (when salv-timer
       (cancel-timer salv-timer))
+    (setq salv-timer nil)
     (salv--run-timer)))
 
 (defun salv--save-buffer (buffer)
   "Save BUFFER and unset timer."
   (when (buffer-live-p buffer)
     (with-current-buffer buffer
-      (setq after-change-functions (remove salv-postpone-hook after-change-functions))
+      (setq-local after-change-functions (remove salv-postpone-hook after-change-functions))
       (save-buffer)
       (setf salv-timer nil))))
 
