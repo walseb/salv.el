@@ -56,6 +56,9 @@
 (defvar-local salv-timer nil
   "Per-buffer timer.")
 
+(defvar-local salv-postpone-hook nil
+  "Keeps track of the current postpone hook so it can be removed after save.")
+
 ;;;; Customization
 
 (defgroup salv nil
@@ -94,7 +97,9 @@ according to `salv-seconds'."
   "Run timer to save current buffer."
   (setf salv-timer (run-with-timer
                     salv-seconds nil #'salv--save-buffer (current-buffer)))
-  (add-hook 'post-self-insert-hook (lambda () (salv--postpone-save (current-buffer))) nil t))
+
+  (setq salv-postpone-hook (lambda (&rest _) (salv--postpone-save (current-buffer))))
+  (add-to-list 'after-change-functions salv-postpone-hook))
 
 (defun salv--postpone-save (buffer)
   "Postpone running salv timer due to buffer edit."
@@ -107,7 +112,7 @@ according to `salv-seconds'."
   "Save BUFFER and unset timer."
   (when (buffer-live-p buffer)
     (with-current-buffer buffer
-      (remove-hook 'post-self-insert-hook 'salv--postpone-save t)
+      (setq after-change-functions (remove salv-postpone-hook after-change-functions))
       (save-buffer)
       (setf salv-timer nil))))
 
