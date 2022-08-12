@@ -69,6 +69,10 @@
   "Seconds before saving buffer."
   :type 'number)
 
+(defcustom salv-save-function 'save-buffer
+  "Function that saves the buffer."
+  :type 'symbol)
+
 ;;;; Commands
 
 ;;;###autoload
@@ -115,7 +119,7 @@ according to `salv-seconds'."
   (when (buffer-live-p buffer)
     (with-current-buffer buffer
       (setq-local after-change-functions (remove salv-postpone-hook after-change-functions))
-      (save-buffer)
+      (funcall salv-save-function)
       (setf salv-timer nil))))
 
 ;;;; Footer
