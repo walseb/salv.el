@@ -99,6 +99,10 @@ according to `salv-interval'."
   ;; If the file to save is the current file, start saving timer.
   (when (eq (funcall salv-remote-buffer-fn) (current-buffer))
     (salv--start-timer))
+
+  ;; Timer could be running if the current buffer been postponed from a remote buffer
+  (when salv-timer
+    (salv--postpone))
   ;; `after-change-functions` is buffer local
   (add-to-list 'after-change-functions #'salv--postpone))
 
@@ -109,11 +113,7 @@ according to `salv-interval'."
 
 (defun salv--postpone (&rest _)
   "Postpone save of current buffer."
-  (salv--postpone-save (funcall salv-remote-buffer-fn)))
-
-(defun salv--postpone-save (buffer)
-  "Postpone running salv timer due to BUFFER edit."
-  (with-current-buffer buffer
+  (with-current-buffer (funcall salv-remote-buffer-fn)
     (salv--stop-timer)
     (salv--start-timer)))
 
