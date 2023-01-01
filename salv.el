@@ -95,7 +95,6 @@ according to `salv-interval'."
 ;;;; Functions
 (defun salv--setup ()
   "Run timer to save current buffer."
-  (setq-local test-5 salv-remote-buffer-fn)
   ;; If the file to save is the current file, start saving timer.
   (when (eq (funcall salv-remote-buffer-fn) (current-buffer))
     (salv--start-timer))
@@ -128,13 +127,13 @@ according to `salv-interval'."
   (setq-local after-change-functions (remove #'salv--postpone after-change-functions))
   (salv--stop-timer))
 
-(defun salv-save-buffer (buffer)
+(defun salv-save-buffer (&optional buffer)
   "Save BUFFER and unset timer."
-  (when (buffer-live-p buffer)
-    (with-current-buffer buffer
-      ;; (message (concat "Salv is saving from the buffer: " (buffer-name buffer)))
-      (funcall salv-save-function)
-      (salv--stop))))
+  (let ((buf (or buffer (funcall salv-remote-buffer-fn))))
+    (when (buffer-live-p buf)
+      (with-current-buffer buf
+        (funcall salv-save-function)
+        (salv--stop)))))
 
 ;;;; Footer
 
