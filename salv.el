@@ -59,6 +59,9 @@
 (defvar salv-remote-buffer-fn (lambda () (current-buffer))
   "Use remote buffer instead of the current buffer.")
 
+(defvar-local salv-target-buffer nil
+  "The buffer to save to.")
+
 ;;;; Customization
 
 (defgroup salv nil
@@ -90,31 +93,62 @@ according to `salv-interval'."
     (setq-local first-change-hook (remq #'salv--setup first-change-hook))
     (when (equal first-change-hook (default-value 'first-change-hook))
       (kill-local-variable 'first-change-hook))
-    (salv--stop)))
+    (salv--stop)
+    (setq salv-target-buffer nil)))
 
 ;;;; Functions
 (defun salv--setup ()
   "Run timer to save current buffer."
   ;; If the file to save is the current file, start saving timer.
-  (when (eq (funcall salv-remote-buffer-fn) (current-buffer))
-    (salv--start-timer))
+  (setq salv-target-buffer (funcall salv-remote-buffer-fn))
+  (message (concat "SETUP: " (buffer-name salv-target-buffer)))
 
-  ;; Timer could be running if the current buffer been postponed from a remote buffer
-  (when salv-timer
-    (salv--postpone))
+  (with-current-buffer salv-target-buffer
+    ;; Timer could be running if the current buffer been postponed from a remote buffer
+    (if salv-timer
+        (salv--postpone)
+      (when (eq salv-target-buffer (current-buffer))
+        (salv--start-timer))))
+
   ;; `after-change-functions` is buffer local
-  (add-to-list 'after-change-functions #'salv--postpone))
+  (add-to-list 'after-change-functions (salv-construct-postpone (current-buffer)))
+
+  ;; (add-to-list 'after-change-functions (list `(lambda ()
+  ;;                                         (with-current-buffer ,salv-target-buffer
+  ;;                                           (salv--postpone)))))
+  
+  
+  )
 
 (defun salv--start-timer ()
   "Run timer to save current buffer."
   (unless salv-timer
     (setq salv-timer (run-with-timer salv-interval nil #'salv-save-buffer (current-buffer)))))
 
-(defun salv--postpone (&rest _)
+;; (defmacro salv-construct-postpone (&rest buf)
+;;   `(with-current-buffer ,@buf
+;;     (with-current-buffer salv-target-buffer
+;;       (salv--postpone))))
+
+(defun salv-construct-postpone (buf)
+  `(lambda (&rest _)
+     (with-current-buffer (buffer-local-value 'salv-target-buffer ,buf)
+       (salv--postpone))))
+
+(defun salv--postpone-remote (&rest _)
   "Postpone save of current buffer."
-  (with-current-buffer (funcall salv-remote-buffer-fn)
-    (salv--stop-timer)
-    (salv--start-timer)))
+  ;; (if (eq (current-buffer) salv-target-buffer)
+  ;;     (message (concat "Salv postponing locally in buffer: " (buffer-name)))
+  ;;   (message (concat "Salv postponing remotely: \"" (buffer-name) "\" -> \"" (buffer-name salv-target-buffer) "\"")))
+  (if salv-mode
+      (with-current-buffer salv-target-buffer
+        (salv--postpone))
+    (message (concat "SALV ERROR. Current buffer: " (buffer-name)))))
+
+(defun salv--postpone ()
+  "Postpone save of current buffer."
+  (salv--stop-timer)
+  (salv--start-timer))
 
 (defun salv--stop-timer ()
   "Reset salv back to pre first change."
@@ -124,12 +158,12 @@ according to `salv-interval'."
 
 (defun salv--stop ()
   "Reset salv back to pre first change."
-  (setq-local after-change-functions (remove #'salv--postpone after-change-functions))
+  (setq-local after-change-functions (remove (salv-construct-postpone (current-buffer)) after-change-functions))
   (salv--stop-timer))
 
 (defun salv-save-buffer (&optional buffer)
   "Save BUFFER and unset timer."
-  (let ((buf (or buffer (funcall salv-remote-buffer-fn))))
+  (let ((buf (or buffer salv-target-buffer)))
     (when (buffer-live-p buf)
       (with-current-buffer buf
         (funcall salv-save-function)
