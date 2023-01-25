@@ -132,8 +132,11 @@ according to `salv-interval'."
 
 (defun salv-construct-postpone (buf)
   `(lambda (&rest _)
-     (with-current-buffer (buffer-local-value 'salv-target-buffer ,buf)
-       (salv--postpone))))
+     (let ((buf (buffer-local-value 'salv-target-buffer ,buf)))
+       (if (not (buffer-live-p buf))
+           (message (concat "Salv error, target buffer is killed. Current buffer is: " (buffer-name (current-buffer))))
+         (with-current-buffer buf)
+         (salv--postpone)))))
 
 (defun salv--postpone-remote (&rest _)
   "Postpone save of current buffer."
