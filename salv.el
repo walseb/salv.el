@@ -110,14 +110,16 @@ according to `salv-interval'."
       (when (eq salv-target-buffer (current-buffer))
         (salv--start-timer))))
 
-  ;; `after-change-functions` is buffer local
-  (add-to-list 'after-change-functions (salv-construct-postpone (current-buffer)))
+  ;; In some buffers, `after-change-functions` isn't buffer local
+  (make-local-variable 'after-change-functions)
+  (add-to-list 'after-change-functions
+               (salv-construct-postpone (current-buffer) "after-change"))
 
   ;; (add-to-list 'after-change-functions (list `(lambda ()
   ;;                                         (with-current-buffer ,salv-target-buffer
   ;;                                           (salv--postpone)))))
-  
-  
+
+
   )
 
 (defun salv--start-timer ()
@@ -130,11 +132,14 @@ according to `salv-interval'."
 ;;     (with-current-buffer salv-target-buffer
 ;;       (salv--postpone))))
 
-(defun salv-construct-postpone (buf)
+(defun salv-construct-postpone (buf caller)
   `(lambda (&rest _)
      (let ((buf-new (buffer-local-value 'salv-target-buffer ,buf)))
        (if (not (buffer-live-p buf-new))
-           (message (concat "Salv error, target buffer is killed. Current buffer is: " (buffer-name (current-buffer))))
+           (message
+            (concat "Salv error, target buffer is killed. Current buffer is: "
+                    (buffer-name (current-buffer))
+                    " function caller: " ,caller))
          (with-current-buffer buf-new
            (salv--postpone))))))
 
@@ -161,11 +166,12 @@ according to `salv-interval'."
 
 (defun salv--stop ()
   "Reset salv back to pre first change."
-  (setq-local after-change-functions (remove (salv-construct-postpone (current-buffer)) after-change-functions))
+  (setq-local after-change-functions (remove (salv-construct-postpone (current-buffer) "stop") after-change-functions))
   (salv--stop-timer))
 
 (defun salv-save-buffer (&optional buffer)
   "Save BUFFER and unset timer."
+  (message (concat "Saving salv buffer from " (buffer-name (or buffer (current-buffer)))))
   (let ((buf (or buffer salv-target-buffer)))
     (when (buffer-live-p buf)
       (with-current-buffer buf
