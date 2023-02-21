@@ -101,7 +101,7 @@ according to `salv-interval'."
   "Run timer to save current buffer."
   ;; If the file to save is the current file, start saving timer.
   (setq salv-target-buffer (funcall salv-remote-buffer-fn))
-  (message (concat "SETUP: " (buffer-name salv-target-buffer)))
+  ;; (message (concat "SETUP: " (buffer-name salv-target-buffer)))
 
   (with-current-buffer salv-target-buffer
     ;; Timer could be running if the current buffer been postponed from a remote buffer
@@ -136,7 +136,7 @@ according to `salv-interval'."
   `(lambda (&rest _)
      (let ((buf-new (buffer-local-value 'salv-target-buffer ,buf)))
        (if (not (buffer-live-p buf-new))
-           (message
+           (warn
             (concat "Salv error, target buffer is killed. Current buffer is: "
                     (buffer-name (current-buffer))
                     " function caller: " ,caller))
@@ -151,7 +151,7 @@ according to `salv-interval'."
   (if salv-mode
       (with-current-buffer salv-target-buffer
         (salv--postpone))
-    (message (concat "SALV ERROR. Current buffer: " (buffer-name)))))
+    (warn (concat "SALV ERROR. Current buffer: " (buffer-name)))))
 
 (defun salv--postpone ()
   "Postpone save of current buffer."
@@ -171,7 +171,7 @@ according to `salv-interval'."
 
 (defun salv-save-buffer (&optional buffer)
   "Save BUFFER and unset timer."
-  (message (concat "Saving salv buffer from " (buffer-name (or buffer (current-buffer)))))
+  ;; (message (concat "Saving salv buffer from " (buffer-name (or buffer (current-buffer)))))
   (let ((buf (or buffer salv-target-buffer)))
     (when (buffer-live-p buf)
       (with-current-buffer buf
