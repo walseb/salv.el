@@ -125,6 +125,7 @@ according to `salv-interval'."
 (defun salv--start-timer ()
   "Run timer to save current buffer."
   (unless salv-timer
+    (add-hook 'after-save-hook 'salv--stop-timer nil t)
     (setq salv-timer (run-with-timer salv-interval nil #'salv-save-buffer (current-buffer)))))
 
 ;; (defmacro salv-construct-postpone (&rest buf)
@@ -161,6 +162,7 @@ according to `salv-interval'."
 (defun salv--stop-timer ()
   "Reset salv back to pre first change."
   (when salv-timer
+    (remove-hook 'after-save-hook 'salv--stop-timer t)
     (cancel-timer salv-timer)
     (setq salv-timer nil)))
 
@@ -176,7 +178,9 @@ according to `salv-interval'."
     (when (buffer-live-p buf)
       (with-current-buffer buf
         (funcall salv-save-function)
-        (salv--stop)))))
+        ;; Gets implicitly called through the after save hook
+        ;; (salv--stop)
+        ))))
 
 ;;;; Footer
 
